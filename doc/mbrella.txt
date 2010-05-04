@@ -1,0 +1,284 @@
+
+
+
+
+THIS IS MOSTLY OLD BRAINSTORMING
+
+
+
+
+
+strip template to its essentials
+
+extend it to work on the server
+
+
+
+template () {
+	// server state
+	x = state(...),
+	y = state(...),
+	
+	// server actions
+	doSomething = action (p1, p2) {
+		set(x, ...),
+		...
+	},
+	
+	// special server actions
+	onClientJoin(clientId) {
+		...
+	},
+	onClientExit(clientId) {
+		...
+	},
+	
+	// then return the client as a function :: ClientId -> XML
+	template (clientId) {
+		// local state
+		a = state(...),
+		
+		// all sorts of other stuff
+		
+		<div>
+			...
+		</div>
+	}
+}
+
+
+
+template {
+    x = 6,
+    y = state(2),
+    f = function (x) {
+        return x+2;
+    },
+    <div>{f(x)}</div>
+}
+
+
+
+
+
+semantics
+    [`let, name, expr]
+    expr
+        [`template, [name], [let], expr]
+        [`function, JS:funcRest]
+        [`state, JS:expr]
+        [`action, JS:funcRest]
+        xml
+            [`element, name, [attribute], [xml]]
+            attribute
+                [`attribute, name, value]
+            [`text, value]
+            value
+                [`insert, JS:expr]
+                [`strvalue, value]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ometa Mbrella <: Parser {
+
+    fromTo :x :y = seq(x) (~seq(y) char)* seq(y),
+    space       = super(#space) | fromTo('//', '\n') | fromTo('/*', '*/'),
+    
+    escapeChar  = '\\'        char:c                                                    -> unescape('\\' + c),
+    str         = '\''        (escapeChar | ~'\'' char)*:cs '\''                        -> cs.join('')
+                | '"'         (escapeChar | ~'"'  char)*:cs '"'                         -> cs.join(''),
+    
+    nameFirst   = letter | '$' | '_',
+    nameRest    = nameFirst | digit,
+    name        = firstAndRest(`nameFirst, `nameRest):r                                 -> r.join(''),
+    
+    
+    
+    
+    formal      = spaces name,
+    args        = listOf(`formal, ","),
+
+    let         = name:n "=" expr:e                                                     -> [`let, n, e],    
+    lets        = (`let:l "," spaces -> l)*,
+    
+    expr        = template | function | state | action,
+    template    = "template" "(" args:as ")" "{" lets:ls expr:e "}"                     -> [`template, as, ls, e],
+    function    = "function" foreign(JSParser, "funcRest"):f                            -> [`function, f],
+    state       = "state" "(" foreign(JSParser, "expr"):j ")"                           -> [`state, j],
+    action      = "action" foreign(JSParser, "funcRest"):f                              -> [`action, f],
+    
+    
+    
+    
+    node        = element | text,
+    element     = "<" name:n attributes:as "/>"                                         -> [`element, n, as, []]
+                | "<" name:n attributes:as ">" node*:ns "</" name:n2 ">" ?(n==n2)       -> [`element, n, as, ns],
+    text        = (~"<" ~"{" char)+:cs                                                  -> [`text, [`strvalue, cs.join('')]]
+                | insert:i                                                              -> [`text, i],
+    attribute   = name:n spaces "=" spaces value:v                                      -> [`att, n, v],
+    attributes  = (spaces attribute)*,
+    
+    value       = insert | strvalue,
+    insert      = "{" foreign(JSParser, "expr"):e "}"                                   -> [`insert, e],
+    strvalue    = str:s                                                                 -> [`strvalue, s]
+}
+
+
+
+
+
+
+
+
+
+
+
+ometa MbrellaXML <: Parser {
+
+    fromTo :x :y = seq(x) (~seq(y) char)* seq(y),
+    escapeChar   = '\\'        char:c                                                              -> unescape('\\' + c),
+    str          = '\''        (escapeChar | ~'\'' char)*:cs '\''                                  -> cs.join('')
+                 | '"'         (escapeChar | ~'"'  char)*:cs '"'                                   -> cs.join(''),
+
+
+    name        = letter+:cs                                                            -> cs.join(''),
+    node        = comment | element | text,
+    element     = "<" name:n attributes:as "/>"                                         -> [`element, n, as, []]
+                | "<" name:n attributes:as ">" node*:ns "</" name:n2 ">" ?(n==n2)       -> [`element, n, as, ns],
+    text        = (~"<" char)+:cs                                                       -> [`text, cs.join('')],
+    attribute   = name:n spaces "=" spaces str:v                                        -> [`att, n, v],
+    attributes  = (spaces attribute)*,
+    comment     = fromTo("<!--", "-->")                                                 -> [`comment]
+}
+
+
+
+ometa Mbrella <: Parser {
+	fromTo :x :y = seq(x) (~seq(y) char)* seq(y),
+	space = super(#space) | fromTo('//', '\n') | fromTo('/*', '*/'),
+	name = letter+,
+	
+	expr = template | function | state | xml | action,
+	let = name "=" expr ",",
+	
+	template = "template" "(" listOf("name", ",") ")" "{" let* xml "}",
+	function = "function" foreign(JSParser, "funcRest"),
+	state = "state" "(" foreign(JSParser, "expr") ")",
+	xml = "TODO",
+	action = "action" foreign(JSParser, "funcRest")
+}
+
+
+
+
+Mbrella.matchAll("function (somevar,x)", "Expr")
+
+Function = "function" "(" listOf("VTC", ",") ")"
+
+
+
+
+
+
+VTC = template (...) {}
+VTC = function (...) {}
+VTC = state
+VTC = <XML>...</XML>
+VTC = action (...) {}
+
+anything else is sugar for:
+VTC = ...   ->   VTC = function () {return ...;}
+
+
+
+
+
+
+
+
+so on the server i've got
+	a template that returns a (reactive) json output, whose properties are allowed to have
+		(reactive) json,
+		actions (tokens)
+
+
+
+
+
+
+
+implementation:
+	template, function are represented as javascript functions
+	state is represented by an object that has methods:
+		value()
+			the current state
+		addListener(callback)
+			calls callback whenever value() changes (ie: if you were to call value(), you'd get a different result)
+			returns a function to remove the listener
+	xml and action are represented as tokens, which internally are looked up to get
+		xml as the json-ed xml code and an environment,
+		actions as the json-ed list of actions and an environment
+	
+
+
+we examine each function and make note of any variables it calls from outside its own scope, which we call free variables.
+
+if a function takes nothing from outside its scope, it's called a constant.
+
+to determine the dependencies of:
+	a function, we look at its free variables and concatmap recursively
+	xml, []
+	action, []
+	a state, then return that state object
+	template, then return the dependencies of the output of the template
+
+
+so now in the xml area,
+	we can annotate every function that gets used (ie: in {} and f:each) with its dependencies (which are a bunch of state objects)
+	so then we just add a listener to each of those state objects that tells the thing to re-evaluate on any change
+
+
+
+
+
+
+
+
+
+

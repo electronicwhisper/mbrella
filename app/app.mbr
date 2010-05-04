@@ -1,0 +1,19 @@
+template () {
+    x = 3,
+    s = state(6),
+    f = function (p, q) {
+        return p + q + x;
+    },
+    
+    embeddedTemplate = template (p) {
+        <div><b>This is embedded: {p + 2}</b></div>
+    },
+    
+    <div>
+        x: {x}<br />
+        s: {s}<br />
+        f(3, 2): {f(3, 2)}<br />
+        embeddedTemplate:
+        <f:call>embeddedTemplate(x)</f:call>
+    </div>
+}

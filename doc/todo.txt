@@ -1,0 +1,43 @@
+type checking
+
+
+garbage collecting reactive
+    have each reactive keep track of its "parent" reactive(s)
+
+
+make a shortcut for setting style- properties
+
+
+actions
+event capturing
+
+
+syntax additions
+  f:each
+  f:on (in progress)
+
+
+design decisions:
+  figure out how/if i want to do "lazy" template calls (so that reactive values are just passed in instead of reapplying the template when they change)
+  should f:on be an attribute or child of an element?
+  figure out how to refer to a reactive value within an action (ie: to set it)
+
+
+
+
+
+
+
+
+
+Write a project description, etc.:
+
+  mbrella is a framework for programming real-time collaborative web apps in a declarative, functional-reactive way.
+
+  Applications:
+    prototyping puzzle games
+  
+  
+
+
+

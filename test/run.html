@@ -1,0 +1,27 @@
+<html>
+<head>
+<script src="../support/closure-library-read-only/closure/goog/base.js"></script>
+
+<script src="../interpreter/util.js"></script>
+<script src="../interpreter/env.js"></script>
+<script src="../interpreter/reactive.js"></script>
+<script src="../interpreter/xml.js"></script>
+<script src="../interpreter/interpreter.js"></script>
+
+<script src="../app/app.js"></script>
+
+<script>
+
+function init() {
+    var xmlenv = evalExpr(mbrellaCode, environment.empty)();
+    console.log(xmlenv);
+    var dom = writeXML(xmlenv.xml, xmlenv.env).dom;
+    goog.dom.appendChild(document.body, dom);
+}
+
+</script>
+</head>
+<body onload="init()">
+
+</body>
+</html>
